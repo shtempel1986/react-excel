@@ -1,0 +1,5 @@
+table {
+  border: solid #000 1px; }
+
+tbody > tr:not(:last-child) > td, th {
+  border-bottom: solid #000 1px; }
