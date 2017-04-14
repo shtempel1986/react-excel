@@ -10,9 +10,13 @@ class Excel extends React.Component {
             descending: false,
             search: false
         };
+        this._preSearchData = null;
+        this._log = [];
         this._sort = this._sort.bind(this);
         this._showEditor = this._showEditor.bind(this);
+        this._toggleSearch = this._toggleSearch.bind(this);
         this._save = this._save.bind(this);
+        this._search = this._search.bind(this);
     }
 
     _sort(e) {
@@ -50,7 +54,7 @@ class Excel extends React.Component {
         });
     }
 
-    render() {
+    _renderTable() {
         return React.createElement(
             "table",
             null,
@@ -73,6 +77,7 @@ class Excel extends React.Component {
             React.createElement(
                 "tbody",
                 { onDoubleClick: this._showEditor },
+                this._renderSearch(),
                 this.state.data.map((row, rowId) => {
                     return React.createElement(
                         "tr",
@@ -98,13 +103,75 @@ class Excel extends React.Component {
             )
         );
     }
+
+    _renderToolbar() {
+        return React.createElement(
+            "button",
+            { className: "toolbar", onClick: this._toggleSearch },
+            "Search"
+        );
+    }
+
+    _renderSearch() {
+        if (!this.state.search) {
+            return false;
+        }
+        return React.createElement(
+            "tr",
+            { onChange: this._search },
+            this.props.headers.map((_ignore, id) => {
+                return React.createElement(
+                    "td",
+                    { key: id },
+                    React.createElement("input", { type: "text", "data-id": id })
+                );
+            })
+        );
+    }
+
+    _toggleSearch() {
+        if (this.state.search) {
+            this.setState({
+                data: this._preSearchData,
+                search: false
+            });
+            this._preSearchData = null;
+        } else {
+            this._preSearchData = this.state.data;
+            this.setState({
+                search: true
+            });
+        }
+    }
+
+    _search(e) {
+        let needle = e.target.value.toLowerCase(),
+            id = e.target.dataset.id,
+            searchData;
+        if (!needle) {
+            this.setState({
+                data: this._preSearchData
+            });
+        }
+        searchData = this._preSearchData.filter(row => {
+            return row[id].toString().toLowerCase().indexOf(needle) > -1;
+        });
+        this.setState({
+            data: searchData
+        });
+    }
+
+    render() {
+        return React.createElement(
+            "div",
+            null,
+            this._renderToolbar(),
+            this._renderTable()
+        );
+    }
 }
 Excel.PropTypes = {
     headers: PropTypes.arrayOf(PropTypes.string),
     initialData: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.string))
 };
-ReactDOM.render(React.createElement(
-    "div",
-    null,
-    React.createElement(Excel, { headers: headers, initialData: data })
-), document.getElementById("root"));
+ReactDOM.render(React.createElement(Excel, { headers: headers, initialData: data }), document.getElementById("root"));

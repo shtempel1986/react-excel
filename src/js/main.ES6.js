@@ -20,9 +20,14 @@ class Excel extends React.Component {
             descending: false,
             search: false
         };
+        this._preSearchData = null;
+        this._log = [];
         this._sort = this._sort.bind(this);
         this._showEditor = this._showEditor.bind(this);
+        this._toggleSearch = this._toggleSearch.bind(this);
         this._save = this._save.bind(this);
+        this._search = this._search.bind(this);
+        this._logSetState = this._logSetState.bind(this);
     }
 
     _sort(e) {
@@ -31,8 +36,7 @@ class Excel extends React.Component {
         let descending = this.state.sortBy === column && !this.state.descending;
         data.sort((a, b) => {
             return descending ?
-                a[column] < b[column] ? 1 : -1 :
-                a[column] > b[column] ? 1 : -1;
+                a[column] < b[column] ? 1 : -1 : a[column] > b[column] ? 1 : -1;
         });
         this.setState({
             data: data,
@@ -61,7 +65,7 @@ class Excel extends React.Component {
         });
     }
 
-    render() {
+    _renderTable() {
         return (
             <table>
                 <thead>
@@ -73,6 +77,7 @@ class Excel extends React.Component {
                 </tr>
                 </thead>
                 <tbody onDoubleClick={this._showEditor}>
+                {this._renderSearch()}
                 {this.state.data.map((row, rowId) => {
                     return <tr key={rowId}>
                         {row.map((cell, id) => {
@@ -92,6 +97,72 @@ class Excel extends React.Component {
                 </tbody>
             </table>);
     }
+
+    _renderToolbar() {
+        return (
+            <button className="toolbar" onClick={this._toggleSearch}>Search</button>
+        );
+    }
+
+    _renderSearch() {
+        if (!this.state.search) {
+            return false;
+        }
+        return (
+            <tr onChange={this._search}>
+                {this.props.headers.map((_ignore, id) => {
+                    return (
+                        <td key={id}>
+                            <input type="text" data-id={id}/>
+                        </td>
+                    )
+                })}
+            </tr>
+        );
+    }
+
+    _toggleSearch() {
+        if (this.state.search) {
+            this.setState({
+                data: this._preSearchData,
+                search: false
+            });
+            this._preSearchData = null;
+        } else {
+            this._preSearchData = this.state.data;
+            this.setState({
+                search: true
+            });
+        }
+    }
+
+    _search(e) {
+        let needle = e.target.value.toLowerCase(), id = e.target.dataset.id, searchData;
+        if (!needle) {
+            this.setState({
+                data: this._preSearchData
+            });
+        }
+        searchData = this._preSearchData.filter((row) => {
+            return row[id].toString().toLowerCase().indexOf(needle) > -1;
+        });
+        this.setState({
+            data: searchData
+        });
+    }
+
+    _logSetState(newSate){
+
+    }
+
+    render() {
+        return (
+            <div>
+                {this._renderToolbar()}
+                {this._renderTable()}
+            </div>
+        )
+    }
 }
 Excel.PropTypes = {
     headers: PropTypes.arrayOf(
@@ -104,7 +175,5 @@ Excel.PropTypes = {
     )
 };
 ReactDOM.render(
-    <div>
-        <Excel headers={headers} initialData={data}/>
-    </div>
+    <Excel headers={headers} initialData={data}/>
     , document.getElementById("root"));
