@@ -24,7 +24,7 @@ class Excel extends React.Component {
         this._log = [];
         this._sort = this._sort.bind(this);
         this._showEditor = this._showEditor.bind(this);
-        this._toggleSearch = this._toggleSearch.bind(this);
+        // this._toggleSearch = this._toggleSearch.bind(this);
         this._save = this._save.bind(this);
         this._search = this._search.bind(this);
         this._logSetState = this._logSetState.bind(this);
@@ -38,7 +38,7 @@ class Excel extends React.Component {
             return descending ?
                 a[column] < b[column] ? 1 : -1 : a[column] > b[column] ? 1 : -1;
         });
-        this.setState({
+        this._logSetState({
             data: data,
             sortBy: column,
             descending: descending,
@@ -47,7 +47,7 @@ class Excel extends React.Component {
     }
 
     _showEditor(e) {
-        this.setState({
+        this._logSetState({
             edit: {
                 row: parseInt(e.target.dataset.row, 10),
                 cell: e.target.cellIndex
@@ -59,7 +59,7 @@ class Excel extends React.Component {
         e.preventDefault();
         let input = e.target.firstChild, data = Array.from(this.state.data);
         data[this.state.edit.row][this.state.edit.cell] = input.value;
-        this.setState({
+        this._logSetState({
             edit: null,
             data: data
         });
@@ -100,8 +100,32 @@ class Excel extends React.Component {
 
     _renderToolbar() {
         return (
-            <button className="toolbar" onClick={this._toggleSearch}>Search</button>
+            <div className="toolbar">
+                <button onClick={this._toggleSearch.bind(this)}>Search</button>
+                <a href="data.json" onClick={this._download.bind(this, "json")}>Export JSON</a>
+                <a href="data.csv" onClick={this._download.bind(this, "csv")}>Export CSV</a>
+            </div>
         );
+    }
+
+    _download(format, ev) {
+        let contents = format === "json"
+                ? JSON.stringify(this.state.data)
+                : this.state.data.reduce((result, row) => {
+                    return result
+                        + row.reduce((rowResult, cell, idx) => {
+                            return rowResult
+                                + '"'
+                                + cell.replace(/"/g, '""')
+                                + '"'
+                                + (idx < row.length - 1 ? "," : "");
+                        }, "")
+                        + "\n";
+                }, ""),
+            URL = window.URL || window.webkitURL,
+            blob = new Blob([contents], {type: `text/${format}`});
+        ev.target.href = URL.createObjectURL(blob);
+        ev.target.download = `data.${format}`;
     }
 
     _renderSearch() {
@@ -123,14 +147,14 @@ class Excel extends React.Component {
 
     _toggleSearch() {
         if (this.state.search) {
-            this.setState({
+            this._logSetState({
                 data: this._preSearchData,
                 search: false
             });
             this._preSearchData = null;
         } else {
             this._preSearchData = this.state.data;
-            this.setState({
+            this._logSetState({
                 search: true
             });
         }
@@ -139,20 +163,46 @@ class Excel extends React.Component {
     _search(e) {
         let needle = e.target.value.toLowerCase(), id = e.target.dataset.id, searchData;
         if (!needle) {
-            this.setState({
+            this._logSetState({
                 data: this._preSearchData
             });
         }
         searchData = this._preSearchData.filter((row) => {
             return row[id].toString().toLowerCase().indexOf(needle) > -1;
         });
-        this.setState({
+        this._logSetState({
             data: searchData
         });
     }
 
-    _logSetState(newSate){
+    _logSetState(newState) {
+        this._log.push(JSON.parse(JSON.stringify(
+            this._log.length === 0 ? this.state : newState
+        )));
+        this.setState(newState);
+    }
 
+    componentDidMount() {
+        document.onkeydown = function (e) {
+            if (e.shiftKey && e.altKey && e.keyCode === 82) {
+                this._replay();
+            }
+        }.bind(this)
+    }
+
+    _replay() {
+        if (this._log.length === 0) {
+            console.warn("No state ro replay yet");
+            return;
+        }
+        let idx = -1,
+            interval = setInterval(function () {
+                idx++;
+                if (idx === this._log.length - 1) {
+                    clearInterval(interval);
+                }
+                this.setState(this._log[idx]);
+            }.bind(this), 1000);
     }
 
     render() {
